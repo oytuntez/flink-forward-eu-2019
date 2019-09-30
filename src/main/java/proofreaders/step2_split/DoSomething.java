@@ -6,7 +6,7 @@ import proofreaders.common.ClientProofreadersList;
 
 public class DoSomething extends ProcessFunction<ClientProofreadersList, String> {
     @Override
-    public void processElement(ClientProofreadersList o, Context context, Collector<String> collector) throws Exception {
+    public void processElement(ClientProofreadersList o, Context context, Collector<String> collector) {
         collector.collect(o.toString());
     }
 }
