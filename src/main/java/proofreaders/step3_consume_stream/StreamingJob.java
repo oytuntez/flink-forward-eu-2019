@@ -18,10 +18,16 @@
 
 package proofreaders.step3_consume_stream;
 
+import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import proofreaders.common.ClientProofreader;
+import proofreaders.common.EventType;
 import proofreaders.common.queue.entity.Event;
+
+import java.util.Objects;
 
 public class StreamingJob {
 
@@ -39,18 +45,25 @@ public class StreamingJob {
 		ClientProofreaders cp = new ClientProofreaders(defaultSourceStream);
 		cp.run();
 
-		// A separate business operation - Do something with the business data "client's proofreaders"
-		cp.getResultStream()
-				.process(new DoSomething())
-				.print("business with client proofreaders");
+		// First filter the events for my second business operation.
+		DataStream<Event> newProjectStream = defaultSourceStream
+				.filter((FilterFunction<Event>) event -> Objects.equals(EventType.PROJECT_CREATED, event.getEventType()))
+				.uid("filter-events-for-new-projects")
+				.name("Filter events for new projects");
 
-		// Yet another separate business operation - Do something with the business data "client's proofreaders"
-		cp.getResultStream()
-				.process(new DoSomething())
-				.print("business 2 with client proofreaders");
+		newProjectStream.print();
+
+		// A separate business operation - Do something with the business data "client's proofreaders"
+		SingleOutputStreamOperator<ClientProofreader> proofreadersPickedForProject = newProjectStream.keyBy("payload.projectId")
+				.connect(cp.getResultStream())
+				.process(new InviteLastProofreader())
+				.uid("invite-last-proofreader")
+				.name("invite last proofreader");
+
+		proofreadersPickedForProject.print("proofreadersPickedForProject");
 
 		// execute program
 		System.out.println(env.getExecutionPlan());
-		env.execute("Basic Flink job to collect and share client's previous proofreaders");
+		env.execute("step3_consume_stream");
 	}
 }

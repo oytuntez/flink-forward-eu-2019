@@ -78,6 +78,6 @@ public class StreamingJob {
 
 		// execute program
 		System.out.println(env.getExecutionPlan());
-		env.execute("Basic Flink job to collect and share client's previous proofreaders");
+		env.execute("step1_basic");
 	}
 }

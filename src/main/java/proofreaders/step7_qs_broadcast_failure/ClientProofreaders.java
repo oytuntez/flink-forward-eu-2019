@@ -38,8 +38,6 @@ public class ClientProofreaders extends AbstractBusinessOperator<ClientLanguageP
     }
 
     public ClientProofreaders(DataStream<Event> sourceStream) {
-        super();
-
         this.sourceStream = sourceStream;
     }
 

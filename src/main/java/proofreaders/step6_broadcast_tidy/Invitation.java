@@ -1,27 +1,26 @@
 package proofreaders.step6_broadcast_tidy;
 
 import org.apache.flink.api.common.functions.FilterFunction;
-import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.util.OutputTag;
 import proofreaders.common.ClientProofreader;
-import proofreaders.common.ClientProofreadersList;
 import proofreaders.common.EventType;
 import proofreaders.common.queue.entity.Event;
 
 import java.util.Objects;
 
 public class Invitation {
-    //// EVOLUTION = source stream is now received from outside world.
     private DataStream<Event> sourceStream;
     private DataStream<ClientProofreader> resultStream;
+    transient private ClientProofreaders cp;
 
-    Invitation(DataStream<Event> sourceStream) {
+    Invitation(DataStream<Event> sourceStream, ClientProofreaders cp) {
         this.sourceStream = sourceStream;
+        this.cp = cp;
     }
 
-    public void run(BroadcastStream<ClientProofreadersList> clientProofreadersListBroadcastStream) {
+    public void run() {
         // A separate business operation - we will wait for new projects and send message to the last proofreader
         // who worked for the client of the new project.
 
@@ -36,8 +35,8 @@ public class Invitation {
         // Now get the new projects, connect the client's proofreader list, and select the last proofreader who
         // worked for this same client in this language pair.
         SingleOutputStreamOperator<ClientProofreader> proofreadersPickedForProject = newProjectStream.keyBy("payload.projectId")
-                .connect(clientProofreadersListBroadcastStream)
-                .process(new InviteLastProofreader());
+                .connect(cp.getBroadcastStream())
+                .process(new InviteLastProofreader(cp));
 
         // Get proofreaders selected for this project, as well as the messages to be sent out.
         proofreadersPickedForProject.print();

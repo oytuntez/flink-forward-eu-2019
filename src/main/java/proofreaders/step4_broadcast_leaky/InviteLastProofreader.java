@@ -38,8 +38,6 @@ public class InviteLastProofreader extends KeyedBroadcastProcessFunction<Long, E
 
     @Override
     public void processElement(Event o, ReadOnlyContext readOnlyContext, Collector<ClientProofreader> collector) throws Exception {
-        System.out.println("Invite last proofreader - prc el");
-        System.out.println(o);
         currentProjectState.update(o);
 
         Iterable<Map.Entry<ClientLanguagePair, ClientProofreadersList>> entries = readOnlyContext.getBroadcastState(clientProofreadersBroadcastedStateDescriptor).immutableEntries();
@@ -58,9 +56,6 @@ public class InviteLastProofreader extends KeyedBroadcastProcessFunction<Long, E
 
     @Override
     public void processBroadcastElement(ClientProofreadersList clientProofreaders, Context context, Collector<ClientProofreader> collector) throws Exception {
-        System.out.println("Invite last proofreader - prc brd el");
-        System.out.println(clientProofreaders);
-
         ClientProofreader first = clientProofreaders.get(0);
         if (first != null) {
             context.getBroadcastState(clientProofreadersBroadcastedStateDescriptor).put(new ClientLanguagePair(first.clientId, first.languagePair), clientProofreaders);

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package proofreaders.step5_broadcast_semileaky;
+package proofreaders.step5_broadcast_leaky_improved;
 
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeHint;
@@ -56,15 +56,15 @@ public class StreamingJob {
 				.broadcast(clientProofreadersStateDescriptor);
 
 		// Invitation job. This will fork our default source and also consume broadcasted state clientProofreaders
-		Invitation invitation = new Invitation(defaultSourceStream);
-		invitation.run(clientProofreadersListBroadcastStream);
+		Invitation invitation = new Invitation(defaultSourceStream, clientProofreadersListBroadcastStream);
+		invitation.run();
+
 		// let's get the resulting stream of proofreaders who we have invited to the project
 		DataStream<ClientProofreader> invitedProofreaders = invitation.getResultStream();
 		invitedProofreaders.print("invitedProofreaders");
 
-
 		// execute program
 		System.out.println(env.getExecutionPlan());
-		env.execute("Basic Flink job to collect and share client's previous proofreaders");
+		env.execute("step5_broadcast_leaky_improved");
 	}
 }

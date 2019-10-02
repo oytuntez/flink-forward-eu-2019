@@ -76,7 +76,9 @@ public class StreamingJob {
 		// worked for this same client in this language pair.
 		SingleOutputStreamOperator<ClientProofreader> proofreadersPickedForProject = newProjectStream.keyBy("payload.projectId")
 				.connect(clientProofreadersListBroadcastStream)
-				.process(new InviteLastProofreader());
+				.process(new InviteLastProofreader())
+				.uid("invite-last-proofreader")
+				.name("invite last proofreader");
 
 		// Get proofreaders selected for this project, as well as the messages to be sent out.
 		proofreadersPickedForProject.print();
@@ -85,6 +87,6 @@ public class StreamingJob {
 
 		// execute program
 		System.out.println(env.getExecutionPlan());
-		env.execute("Basic Flink job to collect and share client's previous proofreaders");
+		env.execute("step4_broadcast_leaky");
 	}
 }

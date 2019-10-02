@@ -1,5 +1,11 @@
-package proofreaders.step6_broadcast_tidy;
+package proofreaders.step5_broadcast_leaky_improved;
 
+import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeHint;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
@@ -13,23 +19,37 @@ import proofreaders.common.queue.entity.GenericPayload;
 import java.util.Map;
 
 public class InviteLastProofreader extends KeyedBroadcastProcessFunction<Long, Event, ClientProofreadersList, ClientProofreader> {
-    private transient ClientProofreaders clientProofreaders;
+    private transient ValueState<Event> currentProjectState;
 
-    public InviteLastProofreader(ClientProofreaders clientProofreaders) {
-        this.clientProofreaders = clientProofreaders;
-    }
+    // And here is yet another leak from ClientProofreaders.
+    private MapStateDescriptor<ClientLanguagePair, ClientProofreadersList> clientProofreadersBroadcastedStateDescriptor = new MapStateDescriptor<>(
+            "clientProofreaders",
+            TypeInformation.of(new TypeHint<ClientLanguagePair>() {}),
+            TypeInformation.of(new TypeHint<ClientProofreadersList>() {}));
+
+    private ValueStateDescriptor<Event> sDesc = new ValueStateDescriptor<>("invite-last-proofreader-current-project", TypeInformation.of(Event.class));
 
     // this is because broadcast state arrives earlier to this operator as we are using a Collection source.
     // in proper environment, this would not be needed.
-    private static ClientProofreader defaultProofreader = new ClientProofreader(2L, new LanguagePair("en-US", "tr"), 1L);
+    static ClientProofreader defaultProofreader = new ClientProofreader(2L, new LanguagePair("en-US", "tr"), 1L);
+
+
+    @Override
+    public void open(Configuration parameters) throws Exception {
+        super.open(parameters);
+
+        currentProjectState = getRuntimeContext().getState(sDesc);
+    }
 
     @Override
     public void processElement(Event o, ReadOnlyContext readOnlyContext, Collector<ClientProofreader> collector) throws Exception {
-        Iterable<Map.Entry<ClientLanguagePair, ClientProofreadersList>> entries = readOnlyContext.getBroadcastState(this.clientProofreaders.getBroadcastDescriptor()).immutableEntries();
-        ClientProofreader proofreader = this.pickLastProofreaders(o, entries);
+        currentProjectState.update(o);
+
+        Iterable<Map.Entry<ClientLanguagePair, ClientProofreadersList>> entries = readOnlyContext.getBroadcastState(clientProofreadersBroadcastedStateDescriptor).immutableEntries();
+        ClientProofreader proofreader = this.pickLastProofreaders(o, entries, collector);
 
         if (proofreader == null) {
-            proofreader = new ClientProofreader(2L, new LanguagePair("en-US", "tr"), 1L);
+            proofreader = defaultProofreader;
         }
 
         // This is my resulting proofreader. Let this stream down, in case someone wants to know
@@ -45,11 +65,11 @@ public class InviteLastProofreader extends KeyedBroadcastProcessFunction<Long, E
     public void processBroadcastElement(ClientProofreadersList clientProofreaders, Context context, Collector<ClientProofreader> collector) throws Exception {
         ClientProofreader first = clientProofreaders.get(0);
         if (first != null) {
-            context.getBroadcastState(this.clientProofreaders.getBroadcastDescriptor()).put(new ClientLanguagePair(first.clientId, first.languagePair), clientProofreaders);
+            context.getBroadcastState(clientProofreadersBroadcastedStateDescriptor).put(new ClientLanguagePair(first.clientId, first.languagePair), clientProofreaders);
         }
     }
 
-    private ClientProofreader pickLastProofreaders(Event o, Iterable<Map.Entry<ClientLanguagePair, ClientProofreadersList>> entries) {
+    private ClientProofreader pickLastProofreaders(Event o, Iterable<Map.Entry<ClientLanguagePair, ClientProofreadersList>> entries, Collector<ClientProofreader> collector) throws Exception {
         GenericPayload payload = o.getPayload();
         ClientLanguagePair clientLanguagePair = new ClientLanguagePair(payload.getClientId(), payload.getLanguagePair());
 

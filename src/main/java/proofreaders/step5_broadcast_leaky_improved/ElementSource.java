@@ -1,4 +1,4 @@
-package proofreaders.step5_broadcast_semileaky;
+package proofreaders.step5_broadcast_leaky_improved;
 
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;

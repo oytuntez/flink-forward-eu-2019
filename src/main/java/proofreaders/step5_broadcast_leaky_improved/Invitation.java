@@ -1,4 +1,4 @@
-package proofreaders.step5_broadcast_semileaky;
+package proofreaders.step5_broadcast_leaky_improved;
 
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.streaming.api.datastream.BroadcastStream;
@@ -13,14 +13,15 @@ import proofreaders.common.queue.entity.Event;
 import java.util.Objects;
 
 public class Invitation {
-    //// EVOLUTION = source stream is now received from outside world.
     private DataStream<Event> sourceStream;
     private DataStream<ClientProofreader> resultStream;
-    public Invitation(DataStream<Event> sourceStream) {
+    private BroadcastStream<ClientProofreadersList> clientProofreadersListBroadcastStream;
+    public Invitation(DataStream<Event> sourceStream, BroadcastStream<ClientProofreadersList> clientProofreadersListBroadcastStream) {
         this.sourceStream = sourceStream;
+        this.clientProofreadersListBroadcastStream = clientProofreadersListBroadcastStream;
     }
 
-    public void run(BroadcastStream<ClientProofreadersList> clientProofreadersListBroadcastStream) {
+    public void run() {
         // A separate business operation - we will wait for new projects and send message to the last proofreader
         // who worked for the client of the new project.
 

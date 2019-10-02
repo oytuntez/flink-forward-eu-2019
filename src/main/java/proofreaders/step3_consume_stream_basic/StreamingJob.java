@@ -16,17 +16,16 @@
  * limitations under the License.
  */
 
-package proofreaders.step6_broadcast_tidy;
+package proofreaders.step3_consume_stream_basic;
 
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import proofreaders.common.ClientProofreader;
 import proofreaders.common.queue.entity.Event;
 
 public class StreamingJob {
 
-	public static void main(String[] args) throws Exception {
+	public static void main(String[] args) throws java.lang.Exception {
 		// set up the streaming execution environment
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
@@ -34,21 +33,24 @@ public class StreamingJob {
 		// Source
 		DataStream<Event> defaultSourceStream = ElementSource.buildSource(env);
 
-		// Our job for client's proofreaders information
+		// My first business capsule
+		//// EVOLUTION: we now decided the concept of "client's proofreaders" is quite useful in other workflows as well.
+		////			this first required us to hide the implementation details of the concept "client's proofreader".
 		ClientProofreaders cp = new ClientProofreaders(defaultSourceStream);
 		cp.run();
 
-		// Invitation job. This will fork our default source and also consume broadcasted state clientProofreaders
-		Invitation invitation = new Invitation(defaultSourceStream, cp);
-		invitation.run();
+		// A separate business operation - Do something with the business data "client's proofreaders"
+		cp.getResultStream()
+				.process(new DoSomething())
+				.print("business with client proofreaders");
 
-		// let's get the resulting stream of proofreaders who we have invited to the project
-		DataStream<ClientProofreader> invitedProofreaders = invitation.getResultStream();
-		invitedProofreaders.print("invitedProofreaders");
-
+		// Yet another separate business operation - Do something with the business data "client's proofreaders"
+		cp.getResultStream()
+				.process(new DoSomething())
+				.print("business 2 with client proofreaders");
 
 		// execute program
 		System.out.println(env.getExecutionPlan());
-		env.execute("step6_broadcast_tidy");
+		env.execute("step3_consume_stream_basic");
 	}
 }
